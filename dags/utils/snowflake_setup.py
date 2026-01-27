@@ -25,6 +25,7 @@ def create_wh():
     conn = snowflake_connection()
     try:
         cursor = conn.cursor()
+        cursor.execute("USE ROLE ACCOUNTADMIN;")
         sql = '''
         CREATE WAREHOUSE IF NOT EXISTS STOCK_WH;
         '''
@@ -41,12 +42,12 @@ def create_db():
     try:
         cursor = conn.cursor()
         sql = '''
-        CREATE DATABASE IF NOT EXISTS STOCKS;
+        CREATE DATABASE IF NOT EXISTS STOCKS_DB;
         '''
         cursor.execute(sql)
         conn.commit()
         conn.close()
-        print("Database STOCKS created")
+        print("Database STOCKS_DB created")
     except Exception as e:
         print(f"Error in creating database: {e}")
         return None
@@ -55,14 +56,14 @@ def create_schema():
     conn = snowflake_connection()
     try:
         cursor = conn.cursor()
-        cursor.execute("USE DATABASE STOCKS;")
+        cursor.execute("USE DATABASE STOCKS_DB;")
         sql = '''
-        CREATE SCHEMA IF NOT EXISTS SILVER;
+        CREATE SCHEMA IF NOT EXISTS STOCKS;
         '''
         cursor.execute(sql)
         conn.commit()
         conn.close()
-        print("Schema SILVER created")
+        print("Schema STOCKS created")
     except Exception as e:
         print(f"Error in creating schema: {e}")
         return None
@@ -71,16 +72,19 @@ def create_table():
     conn = snowflake_connection()
     try:
         cursor = conn.cursor()
-        cursor.execute("USE DATABASE STOCKS;")
-        cursor.execute("USE SCHEMA SILVER;")
+        cursor.execute("USE ROLE ACCOUNTADMIN;")
+        cursor.execute("USE DATABASE STOCKS_DB;")
+        cursor.execute("USE SCHEMA STOCKS;")
         sql = '''
-        CREATE TABLE IF NOT EXISTS PRICE (
-            DATETIME TEXT PRIMARY KEY,
+        CREATE OR ALTER TABLE PRICE (
+            DATETIME TIMESTAMP_TZ,
+            TICKER TEXT,
             OPEN FLOAT,
             HIGH FLOAT,
             LOW FLOAT,
             CLOSE FLOAT,
-            VOLUME FLOAT
+            VOLUME FLOAT,
+            CONSTRAINT PK_PRICE PRIMARY KEY (DATETIME, TICKER)
         )
         '''
         cursor.execute(sql)
@@ -91,6 +95,8 @@ def create_table():
         print(f"Error in creating table: {e}")
         return None
     
+
+    
 def create_role():
     conn = snowflake_connection()
     try:
@@ -99,8 +105,8 @@ def create_role():
         USE ROLE ACCOUNTADMIN;
         CREATE ROLE IF NOT EXISTS STOCK_ANALYST;
         GRANT USAGE ON WAREHOUSE STOCK_WH TO ROLE STOCK_ANALYST;
-        GRANT USAGE ON DATABASE STOCKS TO ROLE STOCK_ANALYST;
-        GRANT USAGE ON SCHEMA STOCKS.SILVER TO ROLE STOCK_ANALYST;
+        GRANT USAGE ON DATABASE STOCKS_DB TO ROLE STOCK_ANALYST;
+        GRANT USAGE ON SCHEMA STOCKS_DB.STOCKS TO ROLE STOCK_ANALYST;
         GRANT ROLE STOCK_ANALYST TO USER {};
         '''.format(os.getenv("SNOWFLAKE_USER"))
         cursor.execute(sql, num_statements=6)
