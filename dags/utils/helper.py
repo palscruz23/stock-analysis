@@ -28,9 +28,6 @@ def write_table(df, database, schema, table_name, conn):
         cursor.execute(f"USE SCHEMA {schema};")
         df['DATETIME'] = df['DATETIME'].dt.strftime('%Y-%m-%d %H:%M:%S')
         records = df.values.tolist()
-        print(type(records))
-        print(records[0])
-        print(type(records[0]))
         cursor.executemany(
             f"INSERT INTO {table_name} VALUES (%s, %s, %s, %s, %s, %s, %s)",
             records
@@ -106,15 +103,14 @@ def merge_to_main():
     Merging Snowflake staging table to main table.
     """
     try:
+        conn = snowflake_connection()
         cursor = conn.cursor()
         connector = BaseHook.get_connection("snowflake_conn")
         database = connector.extra_dejson["database"]
         schema = connector.schema
-        table = PRICE
-        temp_table = PRICE_STAGING
+        table = "PRICE"
+        temp_table = "PRICE_STAGING"
         logging.info(f"Merging Staging Table {temp_table} to main...")
-        conn = snowflake_connection()
-        cursor = conn.cursor()
         cursor.execute("USE ROLE STOCK_ANALYST;")
         cursor.execute(f"USE DATABASE {database};")
         cursor.execute(f"USE SCHEMA {schema};")
