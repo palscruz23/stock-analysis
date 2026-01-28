@@ -3,10 +3,18 @@ import snowflake.connector
 from snowflake.connector.pandas_tools import write_pandas
 import pandas as pd
 from airflow.hooks.base import BaseHook
+import logging
+
+logger = logging.getLogger(__name__)
+if __name__ == "__main__":
+      logging.basicConfig(level=logging.INFO)
 
 def snowflake_connection():
     try:
         connector = BaseHook.get_connection("snowflake_conn")
+        # Access attributes
+        logger.info(f"Login: {connector.login}")
+        logger.info(f"Host: {connector.host}")
         conn = snowflake.connector.connect(
             user = connector.login,
             password = connector.password,
@@ -14,7 +22,7 @@ def snowflake_connection():
         )
         return conn
     except Exception as e:
-        print(f"Error in connection: {e}")
+        logger.error(f"Error in connection: {e}")
         return None
 
 def create_wh():
@@ -28,9 +36,9 @@ def create_wh():
         cursor.execute(sql)
         conn.commit()
         conn.close()
-        print(" Warehouse STOCK_WH created")
+        logger.info(" Warehouse STOCK_WH created")
     except Exception as e:
-        print(f"Error in creating warehouse: {e}")
+        logger.error(f"Error in creating warehouse: {e}")
         return None
 
 def create_db():
@@ -43,9 +51,9 @@ def create_db():
         cursor.execute(sql)
         conn.commit()
         conn.close()
-        print("Database STOCKS_DB created")
+        logger.info("Database STOCKS_DB created")
     except Exception as e:
-        print(f"Error in creating database: {e}")
+        logger.error(f"Error in creating database: {e}")
         return None
 
 def create_schema():
@@ -59,9 +67,9 @@ def create_schema():
         cursor.execute(sql)
         conn.commit()
         conn.close()
-        print("Schema STOCKS created")
+        logger.info("Schema STOCKS created")
     except Exception as e:
-        print(f"Error in creating schema: {e}")
+        logger.error(f"Error in creating schema: {e}")
         return None
     
 def create_table():
@@ -86,9 +94,9 @@ def create_table():
         cursor.execute(sql)
         conn.commit()
         conn.close()
-        print("Table PRICE created")
+        logger.info("Table PRICE created")
     except Exception as e:
-        print(f"Error in creating table: {e}")
+        logger.error(f"Error in creating table: {e}")
         return None
     
 
@@ -108,9 +116,9 @@ def create_role():
         cursor.execute(sql, num_statements=6)
         conn.commit()
         conn.close()
-        print("Role STOCK_ANALYST created and granted privileges")
+        logger.info("Role STOCK_ANALYST created and granted privileges")
     except Exception as e:
-        print(f"Error in creating role: {e}")
+        logger.error(f"Error in creating role: {e}")
         return None
 
 def clear_table():
@@ -123,10 +131,10 @@ def clear_table():
         '''
         cursor.execute(sql)
         conn.commit()
-        print("Table cleared")
+        logger.info("Table cleared")
         conn.close()
     except Exception as e:
-        print(f"Error in deleting PRICE table: {e}")
+        logger.error(f"Error in deleting PRICE table: {e}")
         return None
 
 # def write_table(df, overwrite=True):

@@ -34,7 +34,7 @@ def write_table(df, database, schema, table_name, conn):
         )
         logging.info(f"Staging Table {table_name} Updated")
     except Exception as e:
-        print(f"Error in writing in Staging TABLE: {e}")
+        logging.error(f"Error in writing in Staging TABLE: {e}")
         return None
     
 
@@ -95,7 +95,7 @@ def fetch_and_staging(ticker="SI=F", period="2d", interval="1h"):
         write_table(data, database, schema, temp_table, conn)
         conn.close()
     except Exception as e:
-        print(f"Error in creating table: {e}")
+        logging.info(f"Error in creating table: {e}")
         return None
 
 def merge_to_main():
@@ -144,5 +144,5 @@ def merge_to_main():
         conn.close() 
 
     except Exception as e:
-        print(f"Error in merging table: {e}")
+        logging.info(f"Error in merging table: {e}")
         return None
