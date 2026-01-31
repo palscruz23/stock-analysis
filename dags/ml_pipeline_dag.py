@@ -6,7 +6,7 @@ from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta
 from airflow.models import Variable
 # from utils.snowflake_setup import snowflake_connection
-from utils.helper import train
+from utils.ml_helper import *
 
 DBT_PROJECT_PATH = os.path.join(os.environ["AIRFLOW_HOME"], "dbt", 
 "stock_analysis")
