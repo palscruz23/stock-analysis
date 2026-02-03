@@ -5,8 +5,6 @@ services:
     image: "ghcr.io/mlflow/mlflow"
     ports:
       - "5000:5000"
-    command: mlflow server --host 0.0.0.0
-  # starts
-  #   enrironment:
-  # container 
-  #   - KEY=value
+    command: mlflow server --host 0.0.0.0 --allowed-hosts "mlflow:*,localhost:*"
+    networks:
+      - "airflow"

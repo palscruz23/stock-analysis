@@ -74,8 +74,8 @@ def grid_search_rforest(xtrain, xtest, ytrain, ytest):
         'n_estimators': [20, 50],
         # 'criterion': ['gini', 'entropy', 'log_loss'],
         'max_depth': [10, 20],
-        'min_samples_split': [2, 4],
-        'bootstrap': [True, False]
+        'min_samples_split': [2],
+        'bootstrap': [True]
     }
 
     # Generate all combinations
