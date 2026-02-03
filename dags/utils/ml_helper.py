@@ -96,3 +96,13 @@ def train():
     mlflow.set_experiment("stock-classifier")  
     xtrain, xtest, ytrain, ytest = preprocess()
     grid_search_rforest(xtrain, xtest, ytrain, ytest)
+
+def search_best_run():
+    best_run = mlflow.search_runs(
+        experiment_names=["stock-classifier"],
+        order_by=["metrics.f1_macro DESC"],
+        max_results=1
+    )
+    run_id = best_run.iloc[0].run_id
+    model_uri = f"runs:/{run_id}/model_artifact_path"
+    mlflow.register_model(model_uri, tag="challenger")
