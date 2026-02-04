@@ -47,5 +47,15 @@ with DAG(
             python_callable=train, 
         )    
 
-        transform_data >> task_train
+        task_register = PythonOperator(
+            task_id="register_best_model",
+            python_callable=search_best_run, 
+        )    
+
+        task_challenge = PythonOperator(
+            task_id="challenge_champion",
+            python_callable=challenge_champion, 
+        )    
+
+        transform_data >> task_train >> task_register >> task_challenge
 

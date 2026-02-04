@@ -8,6 +8,11 @@ from sklearn.ensemble import RandomForestClassifier
 import mlflow
 from sklearn.metrics import classification_report
 from itertools import product
+from mlflow import MlflowClient
+import json
+
+client = MlflowClient()
+MODEL_NAME = "stock-classifier"
 
 # logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -70,6 +75,7 @@ def ml_flow(model, params, report):
 def grid_search_rforest(xtrain, xtest, ytrain, ytest):
     # Hyperparameter Tuning of Random Forest 
     # Define the parameter grid to tune the hyperparameters
+    logging.info("Performing grid search...")
     param_grid = {
         'n_estimators': [20, 50],
         # 'criterion': ['gini', 'entropy', 'log_loss'],
@@ -90,6 +96,8 @@ def grid_search_rforest(xtrain, xtest, ytrain, ytest):
         ypred_rforest = model.predict(xtest)
         report = classification_report(ytest, ypred_rforest, output_dict=True)
         ml_flow(model, params, report)
+    logging.info("Grid Search done...")
+
 
 def train():
     mlflow.set_tracking_uri("http://mlflow:5000")  
@@ -98,11 +106,69 @@ def train():
     grid_search_rforest(xtrain, xtest, ytrain, ytest)
 
 def search_best_run():
+    logging.info("Searching for best run...")
+    mlflow.set_tracking_uri("http://mlflow:5000")
     best_run = mlflow.search_runs(
         experiment_names=["stock-classifier"],
         order_by=["metrics.f1_macro DESC"],
         max_results=1
     )
+
     run_id = best_run.iloc[0].run_id
-    model_uri = f"runs:/{run_id}/model_artifact_path"
-    mlflow.register_model(model_uri, tag="challenger")
+    history_json = best_run.iloc[0]['tags.mlflow.log-model.history']
+    history_data = json.loads(history_json)
+    model = history_data[0]['artifact_path']
+
+    model_uri = f"runs:/{run_id}/{model}"
+    registered_model = mlflow.register_model(model_uri, name=MODEL_NAME)
+    
+    client.set_registered_model_alias(
+        name=MODEL_NAME, 
+        alias="challenger", 
+        version=registered_model.version # or a specific version number like 1
+    )
+    logging.info("Best run found. Alias as challenger...")
+
+
+def challenge_champion():
+    try:
+        __, xtest, __, ytest = preprocess()
+        model_champion = mlflow.sklearn.load_model(f"models:/{MODEL_NAME}/champion")
+        model_challenger = mlflow.sklearn.load_model(f"models:/{MODEL_NAME}/challenger")
+        challenger_info = client.get_model_version_by_alias(MODEL_NAME,  "challenger")
+        logging.info("Champion and Challenger present. Comparing them and promoting the winner based on F1 metric.")
+
+        ypred_champion = model_champion.predict(xtest)
+        report_champion = classification_report(ytest, ypred_champion, output_dict=True)
+        f1_champion = report_champion['macro avg']['f1-score']
+
+        ypred_challenger = model_challenger.predict(xtest)
+        report_challenger = classification_report(ytest, ypred_challenger, output_dict=True)
+        f1_challenger = report_challenger['macro avg']['f1-score']
+
+        if f1_champion < f1_challenger:
+            client.set_registered_model_alias(
+                name=MODEL_NAME, 
+                alias="champion", 
+                version=challenger_info.version
+            )
+            logging.info(f"Challenger wins. Promoting to champion. Challenger {f1_challenger} vs Champion {f1_champion}")
+            return None
+        else:
+            logging.info(f"Champion wins. Challenger {f1_challenger} vs Champion {f1_champion}")
+            return None
+
+    except:
+        try:
+            challenger_info = client.get_model_version_by_alias(MODEL_NAME,  "challenger")
+            logging.info("No champion. Promoting challenger to champion.")
+            client.set_registered_model_alias(
+                name=MODEL_NAME, 
+                alias="champion", 
+                version=challenger_info.version
+            )
+            return None
+        except:
+            logging.info("No champion or challenger")
+            return None
+            
