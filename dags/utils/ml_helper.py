@@ -160,9 +160,11 @@ def search_best_run():
 def challenge_champion():
     try:
         mlflow.set_tracking_uri("http://mlflow:5000")
+        client = MlflowClient()
+
         __, xtest, __, ytest = preprocess()
-        model_champion = mlflow.sklearn.load_model(f"models:/{MODEL_NAME}/champion")
-        model_challenger = mlflow.sklearn.load_model(f"models:/{MODEL_NAME}/challenger")
+        model_champion = mlflow.sklearn.load_model(f"models:/{MODEL_NAME}@champion")
+        model_challenger = mlflow.sklearn.load_model(f"models:/{MODEL_NAME}@challenger")
         challenger_info = client.get_model_version_by_alias(MODEL_NAME,  "challenger")
         logging.info("Champion and Challenger present. Comparing them and promoting the winner based on F1 metric.")
 
@@ -186,7 +188,8 @@ def challenge_champion():
             logging.info(f"Champion wins. Challenger {f1_challenger} vs Champion {f1_champion}")
             return None
 
-    except:
+    except Exception as e:
+        logging.error(f"Error: {e}")
         try:
             challenger_info = client.get_model_version_by_alias(MODEL_NAME,  "challenger")
             logging.info("No champion. Promoting challenger to champion.")
@@ -197,6 +200,7 @@ def challenge_champion():
             )
             return None
         except:
+            logging.error(f"Error: {e}")
             logging.info("No champion or challenger")
             return None
             
