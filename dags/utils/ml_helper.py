@@ -20,16 +20,18 @@ logger = logging.getLogger(__name__)
 if __name__ == "__main__":
       logging.basicConfig(level=logging.INFO)
 
-def get_features(ticker):
+def get_features(ticker, training=1):
     try:
         conn = snowflake_connection()
         cursor = conn.cursor()
         connector = BaseHook.get_connection("snowflake_conn")
         database = connector.extra_dejson["database"]
         schema = connector.schema
-        table_name = "ML_FEATURES"
+        if training==1:
+            table_name = "ML_FEATURES"
+        else:
+            table_name = "INFERENCE_FEATURES"
         logging.info(f"Accessing {table_name} Table...")
-
         cursor = conn.cursor()
         cursor.execute("USE ROLE STOCK_ANALYST;")
         cursor.execute(f"USE DATABASE {database};")
@@ -46,19 +48,29 @@ def get_features(ticker):
         logging.error(f"Error in retrieving features from {table_name} table: {e}")
         return None
     
-def preprocess():
+def preprocess(training=1):
     # Utilise features from Snowflake table and preprocessing the data.
     df = get_features(Variable.get("TICKER"))
     x = df.drop(["LABEL", "DATETIME", "TICKER", "NEXT_PRICE"], axis=1)
     y = df["LABEL"]
 
     # Split dataset
-    xtrain, xtest, ytrain, ytest = train_test_split(x, y, test_size=0.3, random_state=23)
+    if training == 1:
+        xtrain, xtest, ytrain, ytest = train_test_split(x, y, test_size=0.3, random_state=23)
+    else:
+        xtrain = x
+        ytrain = y
+        ytest = None
 
     # Perform feature scaling
     scaler = StandardScaler()
     xtrain_scaled = scaler.fit_transform(xtrain)
-    xtest_scaled = scaler.transform(xtest)
+    if training == 1:
+        xtest_scaled = scaler.transform(xtest)
+    else:
+        df_inf = get_features(Variable.get("TICKER"), training=0)
+        xtest = df_inf.drop(["DATETIME", "TICKER"], axis=1)
+        xtest_scaled = scaler.transform(xtest)
 
     return (xtrain_scaled, xtest_scaled, ytrain, ytest)
 
@@ -204,4 +216,44 @@ def challenge_champion():
             logging.error(f"Error: {e}")
             logging.info("No champion or challenger")
             return None
-            
+        
+def predict_to_snowflake(df):
+    try:
+        conn = snowflake_connection()
+        cursor = conn.cursor()
+        connector = BaseHook.get_connection("snowflake_conn")
+        database = connector.extra_dejson["database"]
+        schema = connector.schema
+        table_name = "PREDICT_MOVEMENT"
+        logging.info(f"writing prediction to Table {table_name}")
+        cursor = conn.cursor()
+        cursor.execute("USE ROLE STOCK_ANALYST;")
+        cursor.execute(f"USE DATABASE {database};")
+        cursor.execute(f"USE SCHEMA {schema};")
+        df['DATETIME'] = df['DATETIME'].dt.strftime('%Y-%m-%d %H:%M:%S')
+        records = df.values.tolist()
+        cursor.executemany(
+            f"INSERT INTO {table_name} VALUES (%s, %s, %s)",
+            records
+        )
+        conn.close()
+        logging.info(f"Update Table {table_name} with latest prediction")
+    except Exception as e:
+        logging.error(f"Error in writing in TABLE: {e}")
+        return None
+
+def predict():
+    mlflow.set_tracking_uri("http://mlflow:5000")
+    __, xtest, __, __ = preprocess(training=0)
+    model_champion = mlflow.sklearn.load_model(f"models:/{MODEL_NAME}@champion")
+    ypred_champion = model_champion.predict(xtest)
+    logging.info("Performed predict of price movement")
+    df = get_features(Variable.get("TICKER"), training=0)
+    df = df[["DATETIME", "TICKER"]]
+    df["NEXT_PRICE_PRED"] = ypred_champion
+    predict_to_snowflake(df)
+
+
+     
+   
+   

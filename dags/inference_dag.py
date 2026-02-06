@@ -31,35 +31,25 @@ default_args = {
     'retry_delay': timedelta(minutes=5),
 }
 with DAG(
-      dag_id='ml-pipeline',  
+      dag_id='inference-pipeline',  
       default_args=default_args,
       schedule='0 20 * * *',  # Remember: daily at 6am?
       start_date=datetime(2026, 1, 27),
       catchup=False,
   ) as dag:
-        transform_data = DbtTaskGroup(
-            group_id="ml-preprocessing",
+        retrieve_data = DbtTaskGroup(
+            group_id="inference-preprocessing",
             project_config=project_config,
             profile_config=profile_config,
             render_config=RenderConfig(
-                select=["+ml_features"]
+                select=["+inference_features"]
             ),
         )
 
-        task_train = PythonOperator(
-            task_id="train_model",
-            python_callable=train, 
+        task_predict = PythonOperator(
+            task_id="run_prediction",
+            python_callable=predict, 
         )    
 
-        task_register = PythonOperator(
-            task_id="register_best_model",
-            python_callable=search_best_run, 
-        )    
-
-        task_challenge = PythonOperator(
-            task_id="challenge_champion",
-            python_callable=challenge_champion, 
-        )    
-
-        transform_data >> task_train >> task_register >> task_challenge
+        retrieve_data >> task_predict 
 
