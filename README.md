@@ -124,3 +124,7 @@ This launches Airflow (http://localhost:8080) and MLflow (http://localhost:5000)
 1. Enable `stock-data-pipeline` in the Airflow UI to begin ingesting data
 2. Once sufficient data is collected, enable `ml-pipeline` to train and register models
 3. After a champion model is promoted, enable `inference-pipeline` for hourly predictions
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
